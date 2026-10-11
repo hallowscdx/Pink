@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PinkFlip — Live Item Coinflips</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d10;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a32;
+      --pink: #ff4d9e;
+      --pink-dim: #ff4d9e33;
+      --pink-glow: #ff4d9e66;
+      --text: #f0f0f5;
+      --muted: #9a9aa8;
+      --success: #57f287;
+      --danger: #ed4245;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .logo { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    .logo span { color: var(--pink); }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px; border-radius: 999px;
+      cursor: pointer; font-weight: 500; transition: all .2s;
+    }
+    .nav-btn:hover, .nav-btn.active {
+      background: var(--pink-dim); border-color: var(--pink); color: var(--pink);
+    }
+    .wallet-pill {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 8px 14px; border-radius: 999px; display: flex; align-items: center; gap: 10px;
+      font-weight: 600;
+    }
+    .wallet-pill .value { color: var(--pink); }
+    main { padding: 32px 0 60px; }
+    .grid { display: grid; grid-template-columns: 1fr 340px; gap: 28px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px;
+    }
+    .card h2 { font-size: 1.15rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; }
+    .bots { display: flex; flex-direction: column; gap: 10px; }
+    .bot {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 12px 14px; border-radius: 12px; transition: border-color .2s; gap: 10px;
+    }
+    .bot:hover { border-color: var(--pink); }
+    .bot-info { display: flex; align-items: center; gap: 12px; }
+    .bot-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), #c02674);
+      display: grid; place-items: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+    }
+    .bot-name { font-weight: 600; }
+    .bot-status { font-size: 0.75rem; color: var(--success); display: flex; align-items: center; gap: 4px; }
+    .bot-status::before { content: ''; width: 6px; height: 6px; background: var(--success); border-radius: 50%; }
+    .join-bot {
+      background: var(--pink); color: #fff; border: none;
+      padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s; white-space: nowrap;
+    }
+    .join-bot:hover { opacity: 0.9; }
+    .flips-list { display: flex; flex-direction: column; gap: 12px; max-height: 520px; overflow-y: auto; }
+    .flip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+      align-items: center;
+    }
+    .flip.waiting { border-color: #3a3a45; }
+    .flip.live { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink-dim); }
+    .flip-meta { display: flex; flex-direction: column; gap: 4px; }
+    .flip-value { font-weight: 700; color: var(--pink); }
+    .flip-players { font-size: 0.85rem; color: var(--muted); }
+    .flip-items { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    .btn {
+      background: var(--pink); color: #fff; border: none;
+      padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      transition: all .2s; font-size: 0.9rem;
+    }
+    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn.secondary:hover { border-color: var(--pink); color: var(--pink); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .create-form { display: flex; flex-direction: column; gap: 14px; }
+    .form-row { display: flex; gap: 10px; }
+    input, select {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 11px 14px; border-radius: 10px;
+      font-size: 0.95rem; width: 100%;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--pink); }
+    .wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .item-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; text-align: center;
+    }
+    .item-card .name { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+    .item-card .val { color: var(--pink); font-size: 0.8rem; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+    .tab {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-weight: 500;
+    }
+    .tab.active { background: var(--pink-dim); border-color: var(--pink); color: var(--pink); }
+    .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: none; place-items: center; z-index: 100;
+    }
+    .modal-overlay.open { display: grid; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; width: min(420px, 92vw);
+    }
+    .modal h3 { margin-bottom: 12px; }
+    .modal p { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--pink-dim); color: var(--pink);
+      font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+    }
+    footer { text-align: center; padding: 24px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); }
+    .coin {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(145deg, #ff4d9e, #c02674);
+      display: grid; place-items: center; font-size: 1.4rem;
+      animation: spin 1.2s ease-in-out infinite;
+    }
+    @keyframes spin { 0%,100%{transform:rotateY(0)} 50%{transform:rotateY(180deg)} }
+    .result-win { color: var(--success); font-weight: 700; }
+    .result-lose { color: var(--danger); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container header-inner">
+      <div class="logo">Pink<span>Flip</span></div>
+      <div class="nav">
+        <button class="nav-btn active" data-view="flips">Live Flips</button>
+        <button class="nav-btn" data-view="wallet">Wallet</button>
+        <button class="nav-btn" data-view="create">Create Flip</button>
+      </div>
+      <div class="wallet-pill">
+        <span>Balance</span>
+        <span class="value" id="totalValue">$0</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid">
+      <!-- LEFT -->
+      <div>
+        <!-- FLIPS VIEW -->
+        <section id="view-flips" class="card">
+          <h2>🔴 Live Coinflips <span class="badge" id="liveCount">0 open</span></h2>
+          <div class="flips-list" id="flipsList">
+            <div class="empty">No open flips yet. Create one or wait for others.</div>
+          </div>
+        </section>
+
+        <!-- WALLET VIEW -->
+        <section id="view-wallet" class="card" style="display:none">
+          <h2>Your Wallet</h2>
+          <div class="tabs">
+            <button class="tab active" data-tab="inventory">Inventory</button>
+            <button class="tab" data-tab="history">History</button>
+          </div>
+          <div id="inventory">
+            <div class="section-title">Items · Total Value <span id="walletTotal">$0</span></div>
+            <div class="wallet-grid" id="itemGrid"></div>
+            <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn" onclick="openDeposit()">Deposit Items</button>
+              <button class="btn secondary" disabled title="Withdrawals not available yet">Withdraw (Coming Soon)</button>
+            </div>
+          </div>
+          <div id="history" style="display:none">
+            <div class="empty">No deposit/withdraw history yet.</div>
+          </div>
+        </section>
+
+        <!-- CREATE VIEW -->
+        <section id="view-create" class="card" style="display:none">
+          <h2>Create a Coinflip</h2>
+          <div class="create-form">
+            <div>
+              <div class="section-title">Select items from your wallet</div>
+              <div class="wallet-grid" id="createItemSelect"></div>
+            </div>
+            <div class="form-row">
+              <input type="number" id="createValue" placeholder="Total value (auto)" readonly />
+            </div>
+            <button class="btn" id="btnCreate" onclick="createFlip()">Create Flip</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT SIDEBAR -->
+      <div>
+        <div class="card">
+          <h2>Online Bots</h2>
+          <div class="bots">
+            <div class="bot">
+              <div class="bot-info">
+                <div class="bot-avatar">XC</div>
+                <div>
+                  <div class="bot-name">xxcyberl303</div>
+                  <div class="bot-status">Online · MM2</div>
+                </div>
+              </div>
+              <button class="join-bot" onclick="window.open('https://www.roblox.com/gg','_blank')">Join</button>
+            </div>
+            <div class="bot">
+              <div class="bot-info">
+                <div class="bot-avatar">SX</div>
+                <div>
+                  <div class="bot-name">Silenxit6653</div>
+                  <div class="bot-status">Online · MM2</div>
+                </div>
+              </div>
+              <button class="join-bot" onclick="window.open('https://www.roblox.com/fun','_blank')">Join</button>
+            </div>
+          </div>
+          <p style="margin-top:14px; font-size:0.8rem; color:var(--muted);">
+            Trade the bot the items you want to deposit. The logger script posts completed trades to Discord → site credits your wallet.
+          </p>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <h2>How it works</h2>
+          <ol style="padding-left:18px; color:var(--muted); font-size:0.9rem; display:flex; flex-direction:column; gap:8px;">
+            <li>Join a bot → trade your items</li>
+            <li>Bot accepts → Discord webhook fires</li>
+            <li>Site receives payload & credits wallet</li>
+            <li>Create or join a flip with similar value</li>
+            <li>Winner takes the entire pot</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    PinkFlip · Items stay in escrow until flip resolves · Withdrawals coming soon
+  </footer>
+
+  <!-- Deposit modal -->
+  <div class="modal-overlay" id="depositModal">
+    <div class="modal">
+      <h3>Deposit Items</h3>
+      <p>1. Click a bot above and join the Roblox server.<br>
+         2. Trade the bot the items you want to deposit.<br>
+         3. Once the trade fully completes, the logger script sends the items + your username to the Discord webhook.<br>
+         4. The site will credit your wallet (currently simulated).</p>
+      <div class="modal-actions">
+        <button class="btn secondary" onclick="closeDeposit()">Close</button>
+        <button class="btn" onclick="simulateDeposit()">Simulate Deposit (demo)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flip result modal -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal" style="text-align:center">
+      <div class="coin" id="resultCoin">🪙</div>
+      <h3 id="resultTitle" style="margin:16px 0 8px">Flipping…</h3>
+      <p id="resultDesc"></p>
+      <div class="modal-actions" style="justify-content:center; margin-top:16px">
+        <button class="btn" onclick="closeResult()">OK</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---------- State ----------
+  const state = {
+    user: localStorage.getItem('pf_user') || 'Player_' + Math.floor(Math.random()*9000+1000),
+    inventory: JSON.parse(localStorage.getItem('pf_inv') || '[]'),
+    flips: JSON.parse(localStorage.getItem('pf_flips') || '[]'),
+    history: JSON.parse(localStorage.getItem('pf_hist') || '[]')
+  };
+
+  // Sample items for demo
+  const SAMPLE_ITEMS = [
+    { name: 'Chroma Darkblade', value: 450 },
+    { name: 'Vampire', value: 120 },
+    { name: 'Ice Dragon', value: 85 },
+    { name: 'Ghostblade', value: 210 },
+    { name: 'Nightblade', value: 95 },
+    { name: 'Rainbow', value: 320 },
+    { name: 'Elderwood Scythe', value: 175 },
+    { name: 'Hallowscythe', value: 260 }
+  ];
+
+  function save() {
+    localStorage.setItem('pf_user', state.user);
+    localStorage.setItem('pf_inv', JSON.stringify(state.inventory));
+    localStorage.setItem('pf_flips', JSON.stringify(state.flips));
+    localStorage.setItem('pf_hist', JSON.stringify(state.history));
+  }
+
+  function totalValue() {
+    return state.inventory.reduce((s, i) => s + (i.value * (i.qty||1)), 0);
+  }
+
+  // ---------- Render ----------
+  function render() {
+    document.getElementById('totalValue').textContent = '$' + totalValue().toLocaleString();
+    document.getElementById('walletTotal').textContent = '$' + totalValue().toLocaleString();
+
+    // Inventory
+    const grid = document.getElementById('itemGrid');
+    if (!state.inventory.length) {
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No items yet. Deposit via a bot.</div>';
+    } else {
+      grid.innerHTML = state.inventory.map((it, idx) => `
+        <div class="item-card">
+          <div class="name">${it.name}</div>
+          <div class="val">$${it.value} ×${it.qty||1}</div>
+        </div>`).join('');
+    }
+
+    // Create select
+    const sel = document.getElementById('createItemSelect');
+    if (!state.inventory.length) {
+      sel.innerHTML = '<div class="empty" style="grid-column:1/-1">Deposit items first</div>';
+    } else {
+      sel.innerHTML = state.inventory.map((it, idx) => `
+        <label class="item-card" style="cursor:pointer">
+          <input type="checkbox" data-idx="${idx}" onchange="updateCreateValue()" style="margin-bottom:6px">
+          <div class="name">${it.name}</div>
+          <div class="val">$${it.value}</div>
+        </label>`).join('');
+    }
+
+    // Flips
+    const list = document.getElementById('flipsList');
+    const open = state.flips.filter(f => f.status === 'open');
+    document.getElementById('liveCount').textContent = open.length + ' open';
+    if (!state.flips.length) {
+      list.innerHTML = '<div class="empty">No flips yet. Be the first!</div>';
+    } else {
+      list.innerHTML = state.flips.slice().reverse().map(f => {
+        const isMine = f.creator === state.user;
+        const canJoin = f.status === 'open' && !isMine;
+        return `
+          <div class="flip ${f.status}">
+            <div class="flip-meta">
+              <div class="flip-value">$${f.value.toLocaleString()} pot</div>
+              <div class="flip-players">${f.creator} ${f.joiner ? 'vs ' + f.joiner : '(waiting…)'}</div>
+              <div class="flip-items">${f.items.map(i=>i.name).join(', ')}</div>
+              ${f.status === 'finished' ? `<div class="${f.winner===state.user?'result-win':'result-lose'}">Winner: ${f.winner}</div>` : ''}
+            </div>
+            <div>
+              ${canJoin ? `<button class="btn" onclick="joinFlip('${f.id}')">Join</button>` : ''}
+              ${f.status === 'open' && isMine ? `<span class="badge">Yours</span>` : ''}
+              ${f.status === 'live' ? `<div class="coin">🪙</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  function updateCreateValue() {
+    const checks = [...document.querySelectorAll('#createItemSelect input:checked')];
+    let sum = 0;
+    checks.forEach(c => {
+      const it = state.inventory[+c.dataset.idx];
+      sum += it.value * (it.qty||1);
+    });
+    document.getElementById('createValue').value = sum ? sum : '';
+  }
+
+  // ---------- Actions ----------
+  function createFlip() {
+    const checks = [...document.querySelectorAll('#createItemSelect input:checked')];
+    if (!checks.length) return alert('Select at least one item');
+    const items = checks.map(c => {
+      const it = state.inventory[+c.dataset.idx];
+      return { ...it };
+    });
+    const value = items.reduce((s,i)=>s + i.value*(i.qty||1), 0);
+
+    // remove from inventory
+    const idxs = checks.map(c => +c.dataset.idx).sort((a,b)=>b-a);
+    idxs.forEach(i => state.inventory.splice(i,1));
+
+    const flip = {
+      id: 'f' + Date.now(),
+      creator: state.user,
+      joiner: null,
+      items,
+      value,
+      status: 'open',
+      winner: null,
+      created: Date.now()
+    };
+    state.flips.push(flip);
+    save();
+    render();
+    switchView('flips');
+  }
+
+  function joinFlip(id) {
+    const flip = state.flips.find(f => f.id === id);
+    if (!flip || flip.status !== 'open') return;
+
+    const needed = flip.value;
+    let available = totalValue();
+    if (available < needed * 0.85) {
+      return alert('You need items worth roughly $' + needed + ' to join this flip. Deposit more.');
+    }
+
+    // take items closest to value (simple greedy for demo)
+    let remaining = needed;
+    const taken = [];
+    const invCopy = [...state.inventory].sort((a,b)=>b.value-a.value);
+    for (const it of invCopy) {
+      if (remaining <= 0) break;
+      taken.push(it);
+      remaining -= it.value * (it.qty||1);
+      const idx = state.inventory.findIndex(x => x.name === it.name && x.value === it.value);
+      if (idx > -1) state.inventory.splice(idx,1);
+    }
+
+    flip.joiner = state.user;
+    flip.joinerItems = taken;
+    flip.status = 'live';
+    save();
+    render();
+
+    // animate result
+    document.getElementById('resultModal').classList.add('open');
+    document.getElementById('resultTitle').textContent = 'Flipping…';
+    document.getElementById('resultDesc').textContent = '';
+    document.getElementById('resultCoin').style.animation = '';
+    setTimeout(() => {
+      const win = Math.random() < 0.5;
+      flip.winner = win ? flip.creator : flip.joiner;
+      flip.status = 'finished';
+
+      // give pot to winner
+      const pot = [...flip.items, ...(flip.joinerItems||[])];
+      if (flip.winner === state.user) {
+        pot.forEach(p => state.inventory.push(p));
+      }
+
+      save();
+      document.getElementById('resultTitle').textContent = flip.winner === state.user ? 'You Won!' : 'You Lost';
+      document.getElementById('resultDesc').textContent = `Winner: ${flip.winner} · Pot $${flip.value * 2}`;
+      document.getElementById('resultCoin').style.animation = 'none';
+      render();
+    }, 2200);
+  }
+
+  function openDeposit() { document.getElementById('depositModal').classList.add('open'); }
+  function closeDeposit() { document.getElementById('depositModal').classList.remove('open'); }
+  function closeResult() { document.getElementById('resultModal').classList.remove('open'); }
+
+  function simulateDeposit() {
+    // demo: add a couple random items as if webhook arrived
+    const picks = SAMPLE_ITEMS.sort(()=>Math.random()-0.5).slice(0, 2 + Math.floor(Math.random()*2));
+    picks.forEach(p => {
+      state.inventory.push({ ...p, qty: 1 });
+      state.history.push({ type: 'deposit', items: [p], time: Date.now(), from: 'bot' });
+    });
+    save();
+    render();
+    closeDeposit();
+    alert('Simulated deposit received from webhook payload.\\nIn production the Discord webhook (or a bridge) posts the item list + username here.');
+  }
+
+  // ---------- Navigation ----------
+  function switchView(name) {
+    ['flips','wallet','create'].forEach(v => {
+      document.getElementById('view-' + v).style.display = v === name ? 'block' : 'none';
+    });
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === name);
+    });
+  }
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.addEventListener('click', () => switchView(b.dataset.view));
+  });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('inventory').style.display = t.dataset.tab === 'inventory' ? 'block' : 'none';
+      document.getElementById('history').style.display = t.dataset.tab === 'history' ? 'block' : 'none';
+    });
+  });
+
+  // init
+  if (!state.inventory.length) {
+    // seed a tiny demo inventory so create is usable immediately
+    state.inventory = [
+      { name: 'Vampire', value: 120, qty: 1 },
+      { name: 'Ice Dragon', value: 85, qty: 1 }
+    ];
+    save();
+  }
+  render();
+</script>
+</body>
+</html>
